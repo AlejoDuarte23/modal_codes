@@ -6,7 +6,6 @@ import warnings
 import scipy.stats as stats
 from scipy import signal
 
-
 # Theor PSD 
 def H(freq,f,z,S,Se,Nm,N):
     H = np.zeros((Nm,Nm,N),dtype=np.complex_)
@@ -34,6 +33,8 @@ def likelihood(x,freq,ymed,Nm,N):
         modelo = np.abs(np.append(modelo,np.trace(ESY)/N))
     return modelo-ymed
 
+
+
 #--------------------------- 2. Plot PSD --------------------------------------#
 def plot_psd(x,Nm,N,freq_id,s1_id):
     f = x[:Nm]
@@ -47,6 +48,7 @@ def plot_psd(x,Nm,N,freq_id,s1_id):
     plt.plot(freq_id,10*np.log10(s1_id),'b',label ='Single Value Spectrum')
     plt.xlabel('Frequency [Hz]')
     plt.ylabel('Decibel [Db]')
+    return H1
 #--------------------------- 5. fdd ------------------------------------------#
 def fdd(Acc,fs,Nc):
     # Acc: Acceleration Matriz NcxN
@@ -72,7 +74,8 @@ def fdd(Acc,fs,Nc):
 
 #--------------------------- 5. Load txt -------------------------------------#
 def MDOF_LSQ(xo,ACC,fs,fo,fi,Nm):
-    s1,psd,freq = fdd(ACC,fs,len(ACC[1,:]))
+    # s1,psd,freq = fdd(ACC,fs,len(ACC[1,:]))
+    freq,s1,N,lenf = CPSD(ACC,fs,ACC.shape[1],fo,fi)
     idd = (np.where((freq>= fo) & (freq <= fi)))
     freq_id= freq[idd]
     s1_id= s1[idd]
@@ -83,7 +86,7 @@ def MDOF_LSQ(xo,ACC,fs,fo,fi,Nm):
     likelyhood = lambda xo,freq,si: likelihood(xo,freq,si,Nm,N)
     opt = least_squares(likelyhood ,xo,loss='cauchy',f_scale=0.1,args=(freq_id, s1_id))
     plot_psd(opt.x,Nm,N,freq_id,s1_id)
-    return opt,psd
+    return opt,s1
 
 def nextpow2(Acc):
     N = Acc.shape[0]
@@ -113,7 +116,8 @@ def CPSD(Acc,fs,Nc,fo,fi):
     
     return freq_id,TSxx,N,len(f)
 
-def Model(x,freq,Nm,N,Fc):
+def Model(x,freq,Nm,N,Fc= None):
+    Fc = N
     # breakpoint()
     f = x[:Nm]
     z = x[ Nm:2*Nm]
@@ -126,4 +130,33 @@ def Model(x,freq,Nm,N,Fc):
         ESY = H1[:,:,i]+10**-40
         modelo = np.abs(np.append(modelo,np.trace(ESY)/Fc))
     return modelo
+
+
+def create_initial_list(Nm,_S,f, z=0.01,Se =-15):
+    S = np.arange(_S, _S-Nm*0.5, -0.5)
+    print(S)
+    x = np.concatenate((f, np.full(Nm, z), S.ravel(), [Se]))
+    return x
+
+def generate_lim_pri(xo, Nm, fs):
+    f_values = xo[:Nm]
+    f_limits = [(max(0, f_values[i] - (f_values[i+1] - f_values[i])/2),
+                 min(fs, f_values[i] + (f_values[i+1] - f_values[i])/2)) if i < (Nm - 1) else (max(0, f_values[i] - (f_values[i] - f_values[i-1])/2), fs) for i in range(Nm)]
+    z_limits = [(0, 0.1)] * Nm
+    S_limits = [(-10, -2)] * Nm
+    Se_limit = (-50, min(xo[Nm * 2:Nm * 3]))
+
+    lim_pri = [f_limits, z_limits, S_limits + [Se_limit]]
+    return lim_pri
+
+
+
+def generate_std(xo, Nm):
+    f_std = [0.05 * f for f in xo[:Nm]]
+    z_std = [0.02] * Nm
+    S_std = [2] * Nm
+    Se_std = [2]
+
+    std = f_std + z_std + S_std + Se_std
+    return std
 
