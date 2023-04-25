@@ -166,7 +166,7 @@ def Model(x,freq,Nm,N,Fc= None):
 
 def create_initial_list(Nm,_S,f, z=0.01,Se =-15):
     S = np.arange(_S, _S-Nm*0.5, -0.5)
-    print(S)
+    # print(S)
     x = np.concatenate((f, np.full(Nm, z), S.ravel(), [Se]))
     return x
 
