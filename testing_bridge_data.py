@@ -43,6 +43,7 @@ from tabulate import tabulate
 
 
 
+
 # model = lambda x: MDOF_LSQ.Model(x, freq, Nm, N)
 def model(x):
     return MDOF_LSQ.Model(x, freq, Nm, N)
@@ -82,13 +83,41 @@ def print_results(results):
 
 def print_results_single_run(result):
     chain_id = result[0]
-    accepted = result[1][0]  # Fix the assignment here
+    accepted_values = result[1][0]
+    num_params = accepted_values.shape[1]
 
-    means = accepted.mean(axis=0)
-    table_data = [[f"Chain {chain_id + 1}", means[0], means[1], means[2]]]
+    means = accepted_values.mean(axis=0)
 
-    headers = ["Chain", "Mean a", "Mean b", "Mean sigma"]
-    print(tabulate(table_data, headers=headers, floatfmt=".4f"))
+    table_data = [["Chain"] + [f"Mean param {i + 1}" for i in range(num_params)]]
+    table_data.append([f"Chain {chain_id + 1}"] + list(means))
+
+    print(tabulate(table_data, headers="firstrow", floatfmt=".4f"))
+
+def print_results_multiple_chains(results):
+    if len(results) == 0:
+        print("No results found.")
+        return
+    
+    num_params = results[0][1][0].shape[1] if results[0][1][0].size != 0 else results[0][1][1].shape[1]
+
+    table_data = [["Chain"] + [f"Mean param {i + 1}" for i in range(num_params)]]
+
+    for result in results:
+        chain_id = result[0]
+        accepted_values = result[1][0]
+        
+        if accepted_values.size == 0:
+            means = [float('nan') for _ in range(num_params)]
+        else:
+            means = accepted_values.mean(axis=0)
+
+        table_data.append([f"Chain {chain_id + 1}"] + list(means))
+
+    # Print the table
+    for row in table_data:
+        print(" | ".join([str(x).ljust(12) for x in row]))
+
+
 
 
     
@@ -99,7 +128,7 @@ xo = MDOF_LSQ.create_initial_list(Nm,S,f,Se = -50)
 
 if __name__ == '__main__':
 
-    iterations = 1000
+    iterations = 50 
     
     std_tr = MDOF_LSQ.generate_std(xo, Nm)
     pri_lim = MDOF_LSQ.generate_lim_pri(xo, Nm, fs)
@@ -108,22 +137,24 @@ if __name__ == '__main__':
 
     engine = MCMCEngine(model, prior, transition_model, std_tr, pri_lim)
 
-    num_chains =1
-    initial_S_values = [-6, -7, -8, -5]
+    num_chains =5
+    initial_S_values = [-6, -7, -8, -5,-7.5]#,-6.5,-8.5]
 
     initial_conditions = []
-
+    # xo = MDOF_LSQ.create_initial_list(Nm, S_val, f, Se=-20)
+    # initial_conditions.append(xo)
     for S_val in initial_S_values:
         xo = MDOF_LSQ.create_initial_list(Nm, S_val, f, Se=-20)
         initial_conditions.append(xo)
-    start_time = time.time()
+    # start_time = time.time()
 
-    result = engine.run_chain(0, initial_conditions[0], iterations, s1)
-    
+    # result = engine.run_chain(0, initial_conditions[0], iterations, s1)
+    # elapsed_time = time.time() - start_time
+    # print(f"Elapsed time: {elapsed_time:.2f} seconds")
+    start_time = time.time()
+    # results = engine.run_chains_parallel(initial_conditions, iterations, s1, num_chains)
+    results = engine.run_chains_parallel2(initial_conditions, iterations, s1, num_chains)
+
     elapsed_time = time.time() - start_time
     print(f"Elapsed time: {elapsed_time:.2f} seconds")
-
-
-    # results = engine.run_chains_parallel(initial_conditions, iterations, s1, num_chains)
-
     # print_results(results)

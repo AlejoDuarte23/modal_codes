@@ -6,6 +6,38 @@ import warnings
 import scipy.stats as stats
 from scipy import signal
 
+
+
+def H_opt(freq, f, z, S, Se, Nm, N):
+    H = np.zeros((Nm, Nm, N), dtype=np.complex_)
+    b = f[:, np.newaxis] / freq
+    term1 = 1 / (1 - b + 2j * z[:, np.newaxis] * b)
+    term2 = term1.conjugate()
+    
+    for i in range(Nm):
+        for j in range(Nm):
+            if i == j:
+                H[i, j, :] = (10 ** S[i, j]) * term1[i, :] * term2[j, :] + 10 ** Se
+    
+    return H
+
+
+def Model_opt(x, freq, Nm, N, Fc=None):
+    if Fc is None:
+        Fc = N
+
+    f = x[:Nm]
+    z = x[Nm:2 * Nm]
+    S = np.diag(x[2 * Nm:3 * Nm])
+    Se = x[-1]
+
+    H1 = H_opt(freq, f, z, S, Se, Nm, N)
+    ESY = np.trace(H1, axis1=0, axis2=1) + 10 ** -40
+    modelo = np.abs(ESY) / Fc
+
+    return modelo
+
+
 # Theor PSD 
 def H(freq,f,z,S,Se,Nm,N):
     H = np.zeros((Nm,Nm,N),dtype=np.complex_)
