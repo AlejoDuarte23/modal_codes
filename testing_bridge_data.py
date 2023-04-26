@@ -124,6 +124,7 @@ import matplotlib.pyplot as plt
 
 
 
+
 def plot_histograms_per_chain(results):
     if len(results) == 0:
         print("No results found.")
@@ -187,18 +188,48 @@ def plot_matrix(results, chain_ids, Nm):
     plt.tight_layout()
     plt.show()
 
-# Call the function with the `results`, a list of `chain_ids`, and `Nm`
-chain_ids = [2]  # Replace with the chain ids you want to include
-Nm = 7  # Replace with the value of Nm
-# plot_matrix(results, chain_ids, Nm)
+
+def get_mean_and_std(results, include_std=False):
+    if len(results) == 0:
+        print("No results found.")
+        return
+
+    num_params = results[0][1][0].shape[1] if results[0][1][0].size != 0 else results[0][1][1].shape[1]
+
+    stats_data = []
+
+    for result in results:
+        chain_id = result[0]
+        accepted_values = result[1][0]
+
+        if accepted_values.size == 0:
+            means = [float('nan') for _ in range(num_params)]
+            stds = [float('nan') for _ in range(num_params)]
+        else:
+            means = accepted_values.mean(axis=0)
+            stds = accepted_values.std(axis=0)
+        
+        if include_std:
+            stats_data.append((chain_id, means, stds))
+        else:
+            stats_data.append((chain_id, means))
+
+    return stats_data
 
 
 
 
-
-
-
-
+def ploting_chains(stats_data,freq,s1):
+    for i in range(len(stats_data)):
+        model =  MDOF_LSQ.Model_opt(stats_data[i][1], freq, Nm, N)
+        plt.figure()
+        plt.plot(freq,10*np.log10(s1))
+        plt.plot(freq,10*np.log10(model))
+        plt.title(f"Chain {i+1}")
+        plt.xlabel('frequency')
+        plt.ylabel('Energy [Db]')
+            
+    # MDOF_LSQ.plot_psd(x,Nm,N,freq_id,s1_id)
 
 
     
@@ -219,7 +250,7 @@ if __name__ == '__main__':
     engine = MCMCEngine(model, prior, transition_model, std_tr, pri_lim)
 
     num_chains =5
-    initial_S_values = [-6, -7, -8, -5,-7.5]#,-6.5,-8.5]
+    initial_S_values = [-7.5, -7.2, -7, -8,-7.7]#,-6.5,-8.5]
 
     initial_conditions = []
     # xo = MDOF_LSQ.create_initial_list(Nm, S_val, f, Se=-20)

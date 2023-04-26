@@ -53,34 +53,35 @@ def H(freq,f,z,S,Se,Nm,N):
 #--------------------------- 1. Likely ---------------------------------------#
 def likelihood(x,freq,ymed,Nm,N):
   
-    f = x[:Nm]
-    z = x[ Nm:2*Nm]
-    S= np.diag(x[ 2*Nm:3*Nm])
-    Se=x[-1]
-    modelo = np.array([])
-    H1 = H(freq,f,z,S,Se,Nm,N)
-    for i in range(len(freq)):
+    # f = x[:Nm]
+    # z = x[ Nm:2*Nm]
+    # S= np.diag(x[ 2*Nm:3*Nm])
+    # Se=x[-1]
+    # modelo = np.array([])
+    # H1 = H_opt(freq,f,z,S,Se,Nm,N)
+    # # for i in range(len(freq)):
      
-        ESY = H1[:,:,i]+10**-40
-        modelo = np.abs(np.append(modelo,np.trace(ESY)/N))
+    # #     ESY = H1[:,:,i]+10**-40
+    # #     modelo = np.abs(np.append(modelo,np.trace(ESY)/N))
+    modelo = Model_opt(x, freq, Nm, N, Fc=None)
     return modelo-ymed
 
 
 
 #--------------------------- 2. Plot PSD --------------------------------------#
 def plot_psd(x,Nm,N,freq_id,s1_id):
-    f = x[:Nm]
-    z = x[ Nm:2*Nm]
-    S= np.diag(x[ 2*Nm:3*Nm])
-    Se=x[-1]
-    H1 = H(freq_id,f,z,S,Se,Nm,N)
-    plt.figure(1)
+    # f = x[:Nm]
+    # z = x[ Nm:2*Nm]
+    # S= np.diag(x[ 2*Nm:3*Nm])
+    # Se=x[-1]
+    # H1 = H_opt(freq_id,f,z,S,Se,Nm,N)
+    plt.figure()
     for i in range(Nm):
-        plt.plot(freq_id,10*np.log10(np.trace(H1)/N),'r',label = 'E[Sy]')
+        plt.plot(freq_id,10*np.log10(Model_opt(x, freq_id, Nm, N)),'r',label = 'E[Sy]')
     plt.plot(freq_id,10*np.log10(s1_id),'b',label ='Single Value Spectrum')
     plt.xlabel('Frequency [Hz]')
     plt.ylabel('Decibel [Db]')
-    return H1
+    # return H1
 #--------------------------- 5. fdd ------------------------------------------#
 def fdd(Acc,fs,Nc):
     # Acc: Acceleration Matriz NcxN
@@ -119,6 +120,18 @@ def MDOF_LSQ(xo,ACC,fs,fo,fi,Nm):
     opt = least_squares(likelyhood ,xo,loss='cauchy',f_scale=0.1,args=(freq_id, s1_id))
     plot_psd(opt.x,Nm,N,freq_id,s1_id)
     return opt,s1
+
+def MDOF_LSQ2(xo,freq_id,s1_id,Nm):
+    N = len(freq_id)
+    plt.figure()
+    plt.plot(freq_id,10*np.log10(s1_id))
+    likelyhood = lambda xo,freq,si: likelihood(xo,freq,si,Nm,N)
+    opt = least_squares(likelyhood ,xo,loss='cauchy',f_scale=0.01,args=(freq_id, s1_id))
+    plot_psd(opt.x,Nm,N,freq_id,s1_id)
+    return opt
+
+    
+
 
 def nextpow2(Acc):
     N = Acc.shape[0]
